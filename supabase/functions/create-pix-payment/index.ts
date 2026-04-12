@@ -1,6 +1,5 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.57.4";
-import QRCode from "npm:qrcode@1.5.3";
 import { createPixTransaction } from "./safefypay.ts";
 
 const corsHeaders = {
@@ -13,29 +12,6 @@ interface CreatePixRequest {
   amount: number;
   donor_name?: string;
   donor_email?: string;
-}
-
-interface PixResponse {
-  id: string;
-  qrCode?: string;
-  copyAndPaste?: string;
-  [key: string]: any;
-}
-
-async function generateQRCode(pixCopyAndPaste: string): Promise<string> {
-  try {
-    const qrCodeDataUrl = await QRCode.toDataURL(pixCopyAndPaste, {
-      errorCorrectionLevel: 'H',
-      type: 'image/png',
-      quality: 0.95,
-      margin: 2,
-      width: 300,
-    });
-    return qrCodeDataUrl;
-  } catch (error) {
-    console.error("Erro ao gerar QR Code:", error);
-    throw new Error("Falha ao gerar QR Code");
-  }
 }
 
 Deno.serve(async (req: Request) => {
@@ -66,12 +42,10 @@ Deno.serve(async (req: Request) => {
 
     console.log("Criando PIX para amount:", amount);
 
-    const transactionData = {
+    const pixResponse = await createPixTransaction({
       amount: Math.floor(amount),
       description: "Doação para Late Coração",
-    };
-
-    const pixResponse = await createPixTransaction(transactionData);
+    });
 
     console.log("Resposta da SafefyPay:", JSON.stringify(pixResponse));
 
@@ -79,7 +53,6 @@ Deno.serve(async (req: Request) => {
     const transactionId = pixData.id || pixResponse.id;
     const pixInfo = pixData.pix || {};
     const copyPaste = pixInfo.copyAndPaste || pixData.copyAndPaste || pixData.copy_and_paste;
-    const apiQrCode = pixInfo.qrCode || pixData.qrCode || pixData.qr_code;
 
     if (!transactionId) {
       throw new Error("ID da transação não encontrado na resposta");
@@ -89,18 +62,14 @@ Deno.serve(async (req: Request) => {
       throw new Error("Código copia e cola não encontrado na resposta");
     }
 
-    const qrCodeDataUrl = apiQrCode && apiQrCode.startsWith('data:image')
-      ? apiQrCode
-      : await generateQRCode(copyPaste);
-
     const { data: transaction, error: dbError } = await supabase
       .from("pix_transactions")
       .insert({
         safefypay_id: transactionId,
         value: amount,
         status: "created",
-        qr_code: qrCodeDataUrl,
-        qr_code_base64: qrCodeDataUrl,
+        qr_code: null,
+        qr_code_base64: null,
         donor_name: donor_name || null,
         donor_email: donor_email || null,
       })
@@ -116,7 +85,6 @@ Deno.serve(async (req: Request) => {
       JSON.stringify({
         id: transaction.id,
         transactionId: transactionId,
-        qrCode: qrCodeDataUrl,
         copyPaste: copyPaste,
         amount: amount,
         status: "created",

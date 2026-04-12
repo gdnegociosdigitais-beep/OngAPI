@@ -115,15 +115,11 @@ export function Hero() {
         throw new Error(msg);
       }
 
-      if (!data.qrCode || !data.copyPaste) {
-        throw new Error(`Dados do PIX incompletos. qrCode: ${!!data.qrCode}, copyPaste: ${!!data.copyPaste}. Resposta: ${JSON.stringify(data).slice(0, 200)}`);
+      if (!data.copyPaste) {
+        throw new Error(`Dados do PIX incompletos. Resposta: ${JSON.stringify(data).slice(0, 200)}`);
       }
 
-      const qrCodeSrc = data.qrCode.startsWith('data:')
-        ? data.qrCode
-        : `data:image/png;base64,${data.qrCode}`;
-
-      setPixData({ ...data, qrCode: qrCodeSrc });
+      setPixData({ ...data, qrCode: undefined });
     } catch (err) {
       let errorMessage = 'Erro desconhecido ao processar doação';
       if (err instanceof Error) {

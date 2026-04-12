@@ -4,13 +4,25 @@ import { X, Copy, CheckCircle } from 'lucide-react';
 interface PixModalProps {
   isOpen: boolean;
   onClose: () => void;
-  qrCode?: string;
   copyPaste?: string;
   amount: number;
 }
 
-export function PixModal({ isOpen, onClose, qrCode, copyPaste, amount }: PixModalProps) {
+function buildQRUrl(text: string): string {
+  return `https://api.qrserver.com/v1/create-qr-code/?size=256x256&ecc=H&data=${encodeURIComponent(text)}`;
+}
+
+export function PixModal({ isOpen, onClose, copyPaste, amount }: PixModalProps) {
   const [copied, setCopied] = useState(false);
+  const [qrLoaded, setQrLoaded] = useState(false);
+  const [qrError, setQrError] = useState(false);
+
+  useEffect(() => {
+    if (isOpen) {
+      setQrLoaded(false);
+      setQrError(false);
+    }
+  }, [isOpen, copyPaste]);
 
   useEffect(() => {
     if (copied) {
@@ -56,7 +68,7 @@ export function PixModal({ isOpen, onClose, qrCode, copyPaste, amount }: PixModa
 
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-3xl max-w-md w-full shadow-2xl">
+      <div className="bg-white rounded-3xl max-w-md w-full shadow-2xl max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between p-6 border-b border-gray-200">
           <h2 className="text-2xl font-bold text-gray-800">Pagar com PIX</h2>
           <button
@@ -74,13 +86,28 @@ export function PixModal({ isOpen, onClose, qrCode, copyPaste, amount }: PixModa
             <p className="text-4xl font-black text-[#ff8149]">R$ {(amount / 100).toFixed(2)}</p>
           </div>
 
-          {qrCode && (
+          {copyPaste && (
             <div className="flex justify-center">
-              <img
-                src={qrCode}
-                alt="QR Code PIX"
-                className="w-64 h-64 border-2 border-gray-200 rounded-2xl p-4 bg-white"
-              />
+              {!qrError ? (
+                <div className="relative w-64 h-64">
+                  {!qrLoaded && (
+                    <div className="absolute inset-0 border-2 border-gray-200 rounded-2xl bg-gray-50 flex items-center justify-center">
+                      <div className="w-8 h-8 border-4 border-[#ff8149] border-t-transparent rounded-full animate-spin" />
+                    </div>
+                  )}
+                  <img
+                    src={buildQRUrl(copyPaste)}
+                    alt="QR Code PIX"
+                    onLoad={() => setQrLoaded(true)}
+                    onError={() => setQrError(true)}
+                    className={`w-64 h-64 border-2 border-gray-200 rounded-2xl p-2 bg-white transition-opacity duration-300 ${qrLoaded ? 'opacity-100' : 'opacity-0'}`}
+                  />
+                </div>
+              ) : (
+                <div className="w-64 h-20 border-2 border-gray-200 rounded-2xl flex items-center justify-center bg-gray-50">
+                  <p className="text-xs text-gray-500 text-center px-4">Use o código abaixo para pagar</p>
+                </div>
+              )}
             </div>
           )}
 
