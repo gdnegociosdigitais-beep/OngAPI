@@ -116,15 +116,28 @@ export function Hero() {
       }
 
       if (!data.qrCode || !data.copyPaste) {
-        console.error('Resposta sem dados PIX:', data);
-        throw new Error('Dados do PIX não retornados pelo servidor');
+        throw new Error(`Dados do PIX incompletos. qrCode: ${!!data.qrCode}, copyPaste: ${!!data.copyPaste}. Resposta: ${JSON.stringify(data).slice(0, 200)}`);
       }
 
-      setPixData(data);
+      const qrCodeSrc = data.qrCode.startsWith('data:')
+        ? data.qrCode
+        : `data:image/png;base64,${data.qrCode}`;
+
+      setPixData({ ...data, qrCode: qrCodeSrc });
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Erro ao processar doação';
+      let errorMessage = 'Erro desconhecido ao processar doação';
+      if (err instanceof Error) {
+        errorMessage = `${err.name}: ${err.message}`;
+      } else if (typeof err === 'string') {
+        errorMessage = err;
+      } else {
+        try {
+          errorMessage = JSON.stringify(err);
+        } catch {
+          errorMessage = String(err);
+        }
+      }
       setError(errorMessage);
-      console.error('Erro ao criar PIX:', err);
     } finally {
       setLoading(false);
     }
@@ -227,9 +240,10 @@ export function Hero() {
                 </Button>
 
                 {error && (
-                  <p className="text-sm text-red-600 bg-red-50 p-3 rounded-xl text-center">
-                    {error}
-                  </p>
+                  <div className="bg-red-50 border-2 border-red-300 p-3 rounded-xl">
+                    <p className="text-sm font-bold text-red-700 text-center mb-1">Erro ao gerar PIX</p>
+                    <p className="text-xs text-red-600 break-all whitespace-pre-wrap">{error}</p>
+                  </div>
                 )}
 
                 <p className="text-xs text-gray-500 leading-relaxed text-center">

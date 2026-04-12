@@ -22,9 +22,35 @@ export function PixModal({ isOpen, onClose, qrCode, copyPaste, amount }: PixModa
   if (!isOpen) return null;
 
   const handleCopy = () => {
-    if (copyPaste) {
-      navigator.clipboard.writeText(copyPaste);
-      setCopied(true);
+    if (!copyPaste) return;
+
+    const tryExecCommand = () => {
+      try {
+        const textArea = document.createElement('textarea');
+        textArea.value = copyPaste;
+        textArea.style.position = 'fixed';
+        textArea.style.top = '0';
+        textArea.style.left = '0';
+        textArea.style.opacity = '0';
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textArea);
+        setCopied(true);
+      } catch {
+        setCopied(false);
+      }
+    };
+
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(copyPaste).then(() => {
+        setCopied(true);
+      }).catch(() => {
+        tryExecCommand();
+      });
+    } else {
+      tryExecCommand();
     }
   };
 
